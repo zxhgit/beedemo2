@@ -7,6 +7,7 @@ import (
 	//"fmt"
 	"strings"
 	"beedemo2/models/thousandfaces"
+        ."github.com/ahmetb/go-linq"
 )
 
 type RecommendModel struct {
@@ -172,6 +173,35 @@ func buildPSortedSlices(sSlices []*RecommendModel,price float64,maxCount int) (s
 		smSlices = append(smSlices, sm)
 		pRn++
 	}
+	if !sort.IsSorted(smSlices) {
+		sort.Sort(smSlices)
+	}
+	if maxCount < len(smSlices) {
+		smSlices = smSlices[0:maxCount]
+	}
+	return
+}
+
+func buildPSortedSlicesLinq(sSlices []*RecommendModel,price float64,maxCount int) (smSlices PSortedModelSlices,err error) {
+	smSlices = PSortedModelSlices{}
+	err = nil
+	if sSlices == nil || len(sSlices) == 0 {
+		return
+	}
+	pRn := 1
+	for _, val := range sSlices {
+		var f float64
+		f, err = strconv.ParseFloat(val.Price, 8)
+		sm := &PSortedModel{
+			PRn:       pRn,
+			Price:     CalcAbs(price - f),
+			SolrModel: val,
+		}
+		smSlices = append(smSlices, sm)
+		pRn++
+	}
+	a:= From(smSlices)
+
 	if !sort.IsSorted(smSlices) {
 		sort.Sort(smSlices)
 	}
