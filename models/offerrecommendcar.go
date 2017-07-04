@@ -3,11 +3,12 @@ package models
 import (
 	"beedemo2/models/solr"
 	"strconv"
-	"sort"
+	//"sort"
 	//"fmt"
 	"strings"
 	"beedemo2/models/thousandfaces"
         ."github.com/ahmetb/go-linq"
+	"beedemo2/utils"
 )
 
 type RecommendModel struct {
@@ -42,37 +43,6 @@ type PSortedModel struct {
 type CrossSortedModel struct {
 	CrossRn int
 	SolrModel *RecommendModel
-}
-
-//创建该类型，以便实现sort.Interface
-type PSortedModelSlices []*PSortedModel
-
-//创建该类型，以便实现sort.Interface
-type CrossSortedModelSlices []*CrossSortedModel
-
-func (c PSortedModelSlices) Len() int {
-	return len(c)
-}
-
-func (c PSortedModelSlices) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-
-func (c PSortedModelSlices) Less(i, j int) bool {
-	if c[i].Price == c[j].Price {
-		return c[i].PRn < c[j].PRn
-	}
-	return c[i].Price < c[j].Price
-}
-
-func (c CrossSortedModelSlices) Len() int {
-	return len(c)
-}
-func (c CrossSortedModelSlices) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-func (c CrossSortedModelSlices) Less(i, j int) bool {
-	return c[i].CrossRn < c[j].CrossRn
 }
 
 func GetSameSeriesRecommendSolr(appId,udId string,seriesId,areaId,pId,cId int)(r []*RecommendModel,err error) {
@@ -155,8 +125,8 @@ func GetDefaultSolr(appId,udId string,areaId,pId,cId,count int)(r []*RecommendMo
 	return
 }
 
-func buildPSortedSlices(sSlices []*RecommendModel,price float64,maxCount int) (smSlices PSortedModelSlices,err error) {
-	smSlices = PSortedModelSlices{}
+func buildPSortedSlicesLinq(sSlices []*RecommendModel,price float64,maxCount int) (smSlices []*PSortedModel,err error) {
+	slices := []*PSortedModel{}
 	err = nil
 	if sSlices == nil || len(sSlices) == 0 {
 		return
@@ -170,49 +140,17 @@ func buildPSortedSlices(sSlices []*RecommendModel,price float64,maxCount int) (s
 			Price:     CalcAbs(price - f),
 			SolrModel: val,
 		}
-		smSlices = append(smSlices, sm)
+		slices = append(slices, sm)
 		pRn++
 	}
-	if !sort.IsSorted(smSlices) {
-		sort.Sort(smSlices)
-	}
-	if maxCount < len(smSlices) {
-		smSlices = smSlices[0:maxCount]
-	}
+	From(slices).OrderByT(func(sm *PSortedModel) float64 { return sm.Price }).
+		ThenByT(func(sm *PSortedModel) int { return sm.PRn }).
+		Take(maxCount).ToSlice(&smSlices)
 	return
 }
 
-func buildPSortedSlicesLinq(sSlices []*RecommendModel,price float64,maxCount int) (smSlices PSortedModelSlices,err error) {
-	smSlices = PSortedModelSlices{}
-	err = nil
-	if sSlices == nil || len(sSlices) == 0 {
-		return
-	}
-	pRn := 1
-	for _, val := range sSlices {
-		var f float64
-		f, err = strconv.ParseFloat(val.Price, 8)
-		sm := &PSortedModel{
-			PRn:       pRn,
-			Price:     CalcAbs(price - f),
-			SolrModel: val,
-		}
-		smSlices = append(smSlices, sm)
-		pRn++
-	}
-	a:= From(smSlices)
-
-	if !sort.IsSorted(smSlices) {
-		sort.Sort(smSlices)
-	}
-	if maxCount < len(smSlices) {
-		smSlices = smSlices[0:maxCount]
-	}
-	return
-}
-
-func buildCrossSortedSlices(smSlices PSortedModelSlices,crossStartRn int)(cssSlices CrossSortedModelSlices,err error) {
-	cssSlices = CrossSortedModelSlices{}
+func buildCrossSortedSlices(smSlices []*PSortedModel,crossStartRn int)(cssSlices []*CrossSortedModel,err error) {
+	cssSlices = []*CrossSortedModel{}
 	err = nil
 	if smSlices == nil || len(smSlices) == 0 {
 		return
@@ -228,13 +166,13 @@ func buildCrossSortedSlices(smSlices PSortedModelSlices,crossStartRn int)(cssSli
 	return
 }
 
-func getSameSeriesRecommend(appId,udId string,seriesId,areaId,pId,cId,maxCount int,price float64)(cssRes CrossSortedModelSlices,err error) {
-	cssRes= CrossSortedModelSlices{}
+func getSameSeriesRecommend(appId,udId string,seriesId,areaId,pId,cId,maxCount int,price float64)(cssRes []*CrossSortedModel,err error) {
+	cssRes= []*CrossSortedModel{}
 	solrRes, err := GetSameSeriesRecommendSolr(appId, udId, seriesId, areaId, pId, cId)
 	if err!=nil{
 		return
 	}
-	pSortedRes, err := buildPSortedSlices(solrRes, price, maxCount)
+	pSortedRes, err := buildPSortedSlicesLinq(solrRes, price, maxCount)
 	if err!=nil{
 		return
 	}
@@ -242,13 +180,13 @@ func getSameSeriesRecommend(appId,udId string,seriesId,areaId,pId,cId,maxCount i
 	return
 }
 
-func getOtherSeriesRecommend(appId,udId string,areaId,pId,cId,maxCount int,price float64)(cssRes CrossSortedModelSlices,err error) {
-	cssRes= CrossSortedModelSlices{}
+func getOtherSeriesRecommend(appId,udId string,areaId,pId,cId,maxCount int,price float64)(cssRes []*CrossSortedModel,err error) {
+	cssRes= []*CrossSortedModel{}
 	solrRes, err := GetOtherSeriesRecommendSolr(appId, udId, areaId, pId, cId)
 	if err!=nil{
 		return
 	}
-	pSortedRes, err := buildPSortedSlices(solrRes, price, maxCount)
+	pSortedRes, err := buildPSortedSlicesLinq(solrRes, price, maxCount)
 	if err!=nil{
 		return
 	}
@@ -318,39 +256,12 @@ func GetThousandFacesRecommend(udId,carIds string,pId,cId int)(res []*thousandfa
 	return
 }
 
-func GetRecommendCar(appId,udId string,seriesId,areaId,pId,cId int,price float64) (res []*RecommendModel,err error) {
-	maxCount := 24
-	var sameRes, otherRes CrossSortedModelSlices
-	combinedRes := CrossSortedModelSlices{}
-	res = []*RecommendModel{}
-
-	sameRes, err = getSameSeriesRecommend(appId, udId, seriesId, areaId, pId, cId, maxCount, price)
-	if err != nil {
-		return
-	}
-	combinedRes = append(combinedRes,sameRes...)
-
-	otherRes, err = getOtherSeriesRecommend(appId, udId, areaId, pId, cId, maxCount, price)
-	if err != nil {
-		return
-	}
-	combinedRes = append(combinedRes,otherRes...)
-
-	if !sort.IsSorted(combinedRes) {
-		sort.Sort(combinedRes)
-	}
-	for _, val := range combinedRes {
-		res = append(res, val.SolrModel)
-	}
-	return
-}
-
 func GetRecommendCarAsync(appId,udId string,seriesId,areaId,pId,cId int,price float64)(res []*RecommendModel,err error) {
 	maxCount := 24
 	res = []*RecommendModel{}
-	var sameRes, otherRes CrossSortedModelSlices
-	combinedRes := CrossSortedModelSlices{}
-	resultChan := make(chan CrossSortedModelSlices, 2)
+	var sameRes, otherRes []*CrossSortedModel
+	combinedRes := []*CrossSortedModel{}
+	resultChan := make(chan []*CrossSortedModel, 2)
 	defer close(resultChan)
 	go func() {
 		sameRes, err = getSameSeriesRecommend(appId, udId, seriesId, areaId, pId, cId, maxCount, price)
@@ -367,12 +278,9 @@ func GetRecommendCarAsync(appId,udId string,seriesId,areaId,pId,cId int,price fl
 	if err != nil {
 		return
 	}
-	if !sort.IsSorted(combinedRes) {
-		sort.Sort(combinedRes)
-	}
-	for _, val := range combinedRes {
-		res = append(res, val.SolrModel)
-	}
+	From(combinedRes).OrderByT(func(csm *CrossSortedModel)int {return csm.CrossRn}).
+		SelectT(func(csm *CrossSortedModel) *RecommendModel {return csm.SolrModel}).
+		ToSlice(&res)
 	return
 }
 
@@ -385,76 +293,61 @@ func GetOfferRecommendList(appId,udId,carIds string,carId, seriesId,areaId,pId,c
 	if err != nil {
 		return
 	}
-	for _, c := range seriesR { //过滤当前车
-		if c != nil && c.CarId != carId {
-			res = append(res, c)
-		}
-	}
+	From(seriesR).WhereT(func(c *RecommendModel) bool { return c.CarId != carId }).
+		Take(size).ToSlice(&res) //过滤当前车
 	rCount := len(res)
+	tfR:=[]*thousandfaces.RecommendCarItem{}
 	if rCount < size { //补充
 		//千人千面
-		var tfR []*thousandfaces.RecommendCarItem
 		tfR, err = GetThousandFacesRecommend(udId, carIds, pId, cId) //改为先过滤再fill车源信息
 		//过滤车源:上一步结果+当前询价车
-		filtedR:=[]*thousandfaces.RecommendCarItem{}
-		for _, c := range tfR {
-			var hit bool
-			for _, r := range res {
-				if r.CarId == c.InfoId {
-					hit = true
-					break
-				}
-			}
-			if !hit && c.InfoId != carId {
-				filtedR = append(filtedR, c)
-			}
-		}
+		var resCarId []int
+		From(res).SelectT(func(c *RecommendModel) int { return c.CarId }).ToSlice(&resCarId)
+		var filtedR []*thousandfaces.RecommendCarItem
+		From(tfR).WhereT(func(c *thousandfaces.RecommendCarItem) bool {
+			res, _ := utils.Contain(c.InfoId, resCarId)
+			return res && c.InfoId != carId
+		}).OrderByDescendingT(func(c *thousandfaces.RecommendCarItem) int { return c.Score }).
+			Take(size - rCount).ToSlice(&filtedR)
 		//填充千人千面车源信息
 		var arrId []int
-		for _, rc := range filtedR {
-			arrId = append(arrId, rc.InfoId)
-		}
+		From(filtedR).SelectT(func(c *thousandfaces.RecommendCarItem) int { return c.InfoId }).ToSlice(&arrId)
 		var cMap map[int]*RecommendModel
 		cMap, err = buildCarsInfo(appId, udId, arrId)
 		if err != nil {
 			return
 		}
-		var ok bool
-		var car *RecommendModel
-		tfFiled := []*RecommendModel{}//排序？？
-		for _, rc := range filtedR {
-			car, ok = cMap[rc.InfoId]
-			if ok {
-				car.Score = rc.Score
-				car.UrType = rc.UrType
-				tfFiled = append(tfFiled, car)
-			}
-		}
+		var tRes []*RecommendModel
+		From(cMap).OrderByDescendingT(func(m *RecommendModel) int { return m.Score }).ToSlice(&tRes)
+		res = append(res, tRes...)
 		//默认列表
 		rCount = len(res)
-		if rCount<size{
+		if rCount < size {
 			var dsR []*RecommendModel
-			dsR,err= GetDefaultSolr(appId,udId,areaId,pId,cId,size - rCount + 10)
-			if err!=nil{
+			dsR, err = GetDefaultSolr(appId, udId, areaId, pId, cId, size-rCount+10)
+			if err != nil {
 				return
 			}
+			var resCarId []int
+			From(res).SelectT(func(c *RecommendModel) int { return c.CarId }).ToSlice(&resCarId)
 			//过滤车源:上一步结果+当前询价车
-			filtedR:=[]*RecommendModel{}
-			for _, c := range dsR {
-				var hit bool
-				for _, r := range res {
-					if r.CarId == c.CarId {
-						hit = true
-						break
-					}
-				}
-				if !hit && c.CarId != carId {
-					filtedR = append(filtedR, c)
-				}
-			}
+			From(dsR).WhereT(func(c *RecommendModel) bool {
+				res, _ := utils.Contain(c.CarId, resCarId)
+				return res && c.CarId != carId
+			}).Take(size - rCount).ToSlice(&dsR)
+			res = append(res, dsR...)
 		}
-
 	}
+	From(res).ForEachT(func(c *RecommendModel) {
+		c.UrType="99"
+		tfCar:= From(tfR).FirstWith(func(tfc interface{}) bool {
+			return tfc.(*thousandfaces.RecommendCarItem).InfoId==c.CarId
+		})
+		if tfCar!=nil{
+			c.Score= tfCar.(*thousandfaces.RecommendCarItem).Score
+			c.UrType=tfCar.(*thousandfaces.RecommendCarItem).UrType
+		}
+	})
 	return
 }
 

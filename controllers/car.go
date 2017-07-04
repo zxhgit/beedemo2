@@ -33,15 +33,19 @@ func (c *CarController)GetAll() {
 	areaId, _ := c.GetInt("areaid")
 	pId, _ := c.GetInt("pid")
 	cId, _ := c.GetInt("cid")
-	//carIds := c.GetString("carids")
+	carIds := c.GetString("carids")
+	carId, _ := c.GetInt("carid")
+	price, _ := c.GetFloat("price", 0)
+
 	//res, err := models.GetSameSeriesRecommendSolr(appId,udId,seriesId,areaId,pId,cId)
 	//fmt.Println(time.Now())
 	//res, err := models.GetRecommendCar(appId, udId, seriesId, areaId, pId, cId, 12.45)
 	//fmt.Println(time.Now())
-	res, err := models.GetRecommendCarAsync(appId, udId, seriesId, areaId, pId, cId, 12.45)
+	//res, err := models.GetRecommendCarAsync(appId, udId, seriesId, areaId, pId, cId, 12.45)
 	//fmt.Println(time.Now())
 	//res, err :=models.GetDefaultSolr(appId, udId, areaId, pId, cId, 10)
 	//res, err := models.GetThousandFacesRecommend(appId, udId, carIds, areaId, pId, cId)
+	res, err := models.GetOfferRecommendList(appId, udId, carIds, carId, seriesId, areaId, pId, cId, price)
 	if (err != nil) {
 		c.Data["json"] = "err"
 	} else {
