@@ -36,7 +36,6 @@ func (c *CarController)GetAll() {
 	carIds := c.GetString("carids")
 	carId, _ := c.GetInt("carid")
 	price, _ := c.GetFloat("price", 0)
-
 	//res, err := models.GetSameSeriesRecommendSolr(appId,udId,seriesId,areaId,pId,cId)
 	//fmt.Println(time.Now())
 	//res, err := models.GetRecommendCar(appId, udId, seriesId, areaId, pId, cId, 12.45)
