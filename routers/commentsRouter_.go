@@ -20,6 +20,13 @@ func init() {
 			AllowHTTPMethods: []string{"get"},
 			Params: nil})
 
+	beego.GlobalControllerRouter["beedemo2/controllers:CpcAdController"] = append(beego.GlobalControllerRouter["beedemo2/controllers:CpcAdController"],
+		beego.ControllerComments{
+			Method: "GetAll",
+			Router: `/`,
+			AllowHTTPMethods: []string{"get"},
+			Params: nil})
+
 	beego.GlobalControllerRouter["beedemo2/controllers:ObjectController"] = append(beego.GlobalControllerRouter["beedemo2/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "Post",

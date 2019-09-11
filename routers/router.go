@@ -30,6 +30,11 @@ func init() {
 				&controllers.CarController{},
 			),
 		),
+		beego.NSNamespace("/cpcad",
+			beego.NSInclude(
+				&controllers.CpcAdController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }
