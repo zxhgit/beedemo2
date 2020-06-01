@@ -9,6 +9,7 @@ package routers
 
 import (
 	"beedemo2/controllers"
+	"beedemo2/controllers/bihu/carinsurance"
 
 	"github.com/astaxie/beego"
 )
@@ -33,6 +34,11 @@ func init() {
 		beego.NSNamespace("/cpcad",
 			beego.NSInclude(
 				&controllers.CpcAdController{},
+			),
+		),
+		beego.NSNamespace("/carinsurance/reinfo",
+			beego.NSInclude(
+				&carinsurance.ReInfoController{},
 			),
 		),
 	)
